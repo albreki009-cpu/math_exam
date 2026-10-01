@@ -1,0 +1,461 @@
+@page "/"
+@rendermode InteractiveServer
+
+@using System.Globalization
+@using Microsoft.AspNetCore.Components.Forms
+
+<PageTitle>اختبار الرياضيات — الصف الثامن</PageTitle>
+
+<!-- Professional Blazor interactive quiz for Grade 8 math with Teacher Panel -->
+<div class="min-h-screen flex items-start justify-center p-8 bg-gradient-to-br from-green-50 via-blue-50 to-blue-100 relative overflow-hidden" style="font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;">
+    <div class="absolute inset-0 pointer-events-none opacity-20">
+        <div class="emoji-grid">
+            <span>🔬</span><span>🦠</span><span>📐</span><span>📏</span><span>🧮</span>
+            <span>🌱</span><span>🌿</span><span>🌳</span><span>🍃</span>
+        </div>
+    </div>
+
+    <div class="relative z-10 w-full max-w-6xl">
+        <div class="bg-white/85 rounded-3xl shadow-lg p-6 md:p-8 backdrop-blur">
+            <!-- Header: title + teacher toggle -->
+            <div class="flex items-start justify-between gap-4">
+                <div>
+                    <h1 class="text-2xl md:text-3xl font-extrabold text-slate-800">اختبار مادة الرياضيات — الصف الثامن</h1>
+                    <p class="mt-1 text-slate-600 text-sm">مساحة الدائرة، حجم المكعب، حجم متوازي المستطيلات — تصميم أنيق ومحتوى تفاعلي.</p>
+                </div>
+
+                <div class="flex items-center gap-3">
+                    <button class="px-4 py-2 rounded-2xl bg-gradient-to-r from-green-400 to-blue-500 text-white shadow-md" @onclick="ToggleTeacherPanel">لوحة المدرّس</button>
+                </div>
+            </div>
+
+            <!-- Progress bar -->
+            <div class="mt-4 p-3 rounded-2xl bg-gradient-to-r from-green-50 to-blue-50 border shadow-sm flex items-center gap-4">
+                <div class="flex-1">
+                    <div class="flex items-center justify-between text-xs text-slate-600 mb-2">
+                        <div class="flex items-center gap-2"><span class="text-sm">تقدم الطالب</span></div>
+                        <div class="font-semibold">@score / @totalQuestions</div>
+                    </div>
+                    <div class="w-full bg-white/40 rounded-full h-3 overflow-hidden">
+                        <div class="h-3 bg-gradient-to-r from-green-400 to-blue-500 rounded-full" style="width:@(ProgressPercent)%"></div>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-3 text-2xl">
+                    <div class="text-center">🌱</div>
+                    <div class="text-center">🌿</div>
+                    <div class="text-center">🌳</div>
+                </div>
+            </div>
+
+            <!-- Main grid -->
+            <div class="mt-6 grid grid-cols-1 lg:grid-cols-4 gap-6">
+                <!-- Quiz container (span 3) -->
+                <div class="lg:col-span-3">
+                    <div class="p-6 rounded-2xl bg-white shadow-md border">
+                        @if (!started)
+                        {
+                            <div class="space-y-4">
+                                <h2 class="text-lg font-semibold">جاهز للانطلاق؟</h2>
+                                <p class="text-sm text-slate-600">اختر مستوى الصعوبة ثم اضغط ابدأ. كل إجابة صحيحة تنمّي نبتتك.</p>
+
+                                <div class="flex items-center gap-3">
+                                    <div class="flex gap-2">
+                                        <button class="px-4 py-2 rounded-xl border bg-white hover:shadow-md" @onclick="() => SetLevel(Level.Easy)">سهل</button>
+                                        <button class="px-4 py-2 rounded-xl border bg-white hover:shadow-md" @onclick="() => SetLevel(Level.Medium)">متوسط</button>
+                                        <button class="px-4 py-2 rounded-xl border bg-white hover:shadow-md" @onclick="() => SetLevel(Level.Hard)">متقدم</button>
+                                    </div>
+                                    <div class="ml-auto">
+                                        <button class="px-5 py-2 rounded-3xl bg-gradient-to-r from-green-500 to-blue-600 text-white font-semibold shadow-lg" @onclick="Start">ابدأ الاختبار</button>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                        else if (celebration)
+                        {
+                            <div class="text-center py-6">
+                                <div class="flex items-center justify-center">
+                                    <div class="w-40 h-40 rounded-full border-2 border-dotted border-green-400 flex items-center justify-center bg-gradient-to-br from-green-50 to-blue-50 shadow-md">
+                                        <div class="text-4xl">📐 📏 🧮 🔬</div>
+                                    </div>
+                                </div>
+                                <h3 class="mt-4 text-2xl font-bold">تهانينا — عالم رياضيات صغير</h3>
+                                <p class="mt-2 text-sm text-slate-600">أتممت الاختبار! شارك إنجازك أو أعد المحاولة.</p>
+                                <div class="mt-4">
+                                    <button class="px-4 py-2 rounded-3xl bg-gradient-to-r from-green-400 to-blue-500 text-white" @onclick="Reset">أعد الاختبار</button>
+                                </div>
+                            </div>
+                        }
+                        else
+                        {
+                            <div>
+                                <div class="flex items-center justify-between">
+                                    <div class="text-sm text-slate-700">السؤال (@(currentIndex+1) / @totalQuestions) — مستوى: @currentLevelLabel</div>
+                                    <div class="text-sm text-slate-600">الدرجة: <span class="font-semibold">@score</span></div>
+                                </div>
+
+                                <div class="mt-4 p-4 rounded-lg border bg-white">
+                                    <div class="text-lg font-medium">@currentQuestion.Text</div>
+                                    <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        @foreach (var opt in currentQuestion.Options)
+                                        {
+                                            <button class="text-left p-3 rounded-2xl border hover:shadow-lg transition-all duration-150 bg-white" @onclick="() => SubmitAnswer(opt)">
+                                                <div class="font-semibold">@opt.Label</div>
+                                                <div class="text-sm text-slate-600 mt-1">@opt.Display</div>
+                                            </button>
+                                        }
+                                    </div>
+
+                                    <div class="mt-3 flex items-center gap-3">
+                                        <button class="text-sm px-3 py-1 rounded-md border" @onclick="RevealHint">تلميح</button>
+                                        <div class="text-sm text-slate-600">@hintMessage</div>
+                                    </div>
+                                </div>
+
+                                @if (showFeedback)
+                                {
+                                    <div class="mt-3 p-3 rounded-md @(lastCorrect ? "bg-green-50 text-green-800" : "bg-red-50 text-red-800")">
+                                        @if (lastCorrect)
+                                        {
+                                            <div>✅ إجابة صحيحة — @lastFeedback</div>
+                                        }
+                                        else
+                                        {
+                                            <div>❌ إجابة خاطئة — @lastFeedback</div>
+                                        }
+                                    </div>
+                                }
+
+                                <div class="mt-4 flex items-center justify-between">
+                                    <div class="text-sm text-slate-600">نبتتك: <span class="font-semibold">@PlantEmoji</span></div>
+                                    <div>
+                                        <button class="px-3 py-1 rounded-md border text-sm" @onclick="Skip">تخطي</button>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <!-- Right column: plant + teacher panel -->
+                <div class="flex flex-col gap-4">
+                    <div class="p-4 rounded-3xl bg-white shadow-md text-center">
+                        <div class="text-sm text-slate-500">معاينة النبتة</div>
+                        <div class="mt-3 text-6xl">@PlantEmoji</div>
+                        <div class="mt-2 text-sm text-slate-600">النمو يعكس نسبة الإجابات الصحيحة.</div>
+                    </div>
+
+                    <div class="p-4 rounded-3xl bg-white shadow-md">
+                        <div class="text-sm text-slate-500">المستوى الحالي</div>
+                        <div class="mt-2 font-semibold">@currentLevelLabel</div>
+                        <div class="mt-3 text-xs text-slate-500">مستويات: سهل، متوسط، متقدم — تظهر تلميحات بعد كل سؤال.</div>
+                    </div>
+
+                    @if (teacherPanelVisible)
+                    {
+                        <div class="p-4 rounded-3xl bg-white/90 shadow-lg border">
+                            <div class="flex items-center justify-between">
+                                <div class="font-semibold">لوحة المدرّس — إضافة سؤال</div>
+                                <button class="text-sm px-2 py-1 rounded-md border" @onclick="() => teacherPanelVisible = false">إغلاق</button>
+                            </div>
+
+                            <div class="mt-3 space-y-2">
+                                <input class="w-full p-2 rounded-md border" placeholder="نص السؤال" @bind="newQuestionText" />
+                                <input class="w-full p-2 rounded-md border" placeholder="الخيار A (قيمة رقمية)" @bind="newOptA" />
+                                <input class="w-full p-2 rounded-md border" placeholder="الخيار B (قيمة رقمية)" @bind="newOptB" />
+                                <input class="w-full p-2 rounded-md border" placeholder="الخيار C (قيمة رقمية)" @bind="newOptC" />
+                                <input class="w-full p-2 rounded-md border" placeholder="الخيار D (قيمة رقمية)" @bind="newOptD" />
+
+                                <div class="flex items-center gap-2">
+                                    <label class="text-sm">الإجابة الصحيحة:</label>
+                                    <select class="p-2 rounded-md border" @bind="newCorrectLabel">
+                                        <option value="A">A</option>
+                                        <option value="B">B</option>
+                                        <option value="C">C</option>
+                                        <option value="D">D</option>
+                                    </select>
+
+                                    <label class="text-sm ml-2">المستوى:</label>
+                                    <select class="p-2 rounded-md border" @bind="newLevel">
+                                        <option value="Level.Easy">سهل</option>
+                                        <option value="Level.Medium">متوسط</option>
+                                        <option value="Level.Hard">متقدم</option>
+                                    </select>
+                                </div>
+
+                                <div class="flex items-center gap-2 mt-2">
+                                    <button class="px-3 py-2 rounded-3xl bg-gradient-to-r from-green-400 to-blue-500 text-white" @onclick="AddTeacherQuestion">أضف السؤال</button>
+                                    <button class="px-3 py-2 rounded-3xl border" @onclick="ClearTeacherForm">مسح النموذج</button>
+                                </div>
+n
+                                <div class="mt-3">
+                                    <div class="text-sm text-slate-600">أو ارفع ملف (PDF أو صورة) لتحليل بسيط وإنشاء أسئلة تلقائياً:</div>
+                                    <InputFile OnChange="HandleTeacherFileSelected" accept=".pdf,.png,.jpg,.jpeg" />
+                                    <div class="text-xs text-slate-500 mt-1">المعالجة هنا تقتصر على محاكاة استخراج الأسئلة لأغراض العرض.</div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    enum Level { Easy, Medium, Hard }
+
+    record Option(string Label, string Display, double Value);
+    record Question(string Text, List<Option> Options, double Answer, string Hint, string Explanation);
+
+    bool started = false;
+    bool celebration = false;
+    int score = 0;
+    int currentIndex = 0;
+    int totalQuestions = 6;
+    Level level = Level.Easy;
+    string hintMessage = string.Empty;
+    bool showFeedback = false;
+    bool lastCorrect = false;
+    string lastFeedback = string.Empty;
+
+    List<Question> questions = new();
+    Question currentQuestion => questions.ElementAtOrDefault(currentIndex) ?? new Question("لا يوجد سؤال.", new List<Option>(), 0, string.Empty, string.Empty);
+
+    string currentLevelLabel => level switch { Level.Easy => "سهل", Level.Medium => "متوسط", _ => "متقدم" };
+
+    string PlantEmoji
+    {
+        get
+        {
+            var ratio = totalQuestions == 0 ? 0 : (double)score / totalQuestions;
+            if (ratio >= 0.75) return "🌳";
+            if (ratio >= 0.4) return "🌿";
+            return "🌱";
+        }
+    }
+
+    int ProgressPercent => totalQuestions == 0 ? 0 : (int)Math.Round((double)score / totalQuestions * 100);
+
+    // Teacher panel state & form fields
+    bool teacherPanelVisible = false;
+    string newQuestionText = string.Empty;
+    string newOptA = string.Empty; string newOptB = string.Empty; string newOptC = string.Empty; string newOptD = string.Empty;
+    string newCorrectLabel = "A";
+    Level newLevel = Level.Easy;
+
+    void ToggleTeacherPanel() => teacherPanelVisible = !teacherPanelVisible;
+
+    void ClearTeacherForm()
+    {
+        newQuestionText = string.Empty;
+        newOptA = newOptB = newOptC = newOptD = string.Empty;
+        newCorrectLabel = "A";
+        newLevel = Level.Easy;
+    }
+
+    void AddTeacherQuestion()
+    {
+        // Attempt to parse options as numeric values; if parsing fails use 0 and display raw text
+
+        var opts = new List<Option>();
+        double valA = ParseOrZero(newOptA);
+        double valB = ParseOrZero(newOptB);
+        double valC = ParseOrZero(newOptC);
+        double valD = ParseOrZero(newOptD);
+        opts.Add(new Option("A", string.IsNullOrWhiteSpace(newOptA) ? "" : newOptA, valA));
+        opts.Add(new Option("B", string.IsNullOrWhiteSpace(newOptB) ? "" : newOptB, valB));
+        opts.Add(new Option("C", string.IsNullOrWhiteSpace(newOptC) ? "" : newOptC, valC));
+        opts.Add(new Option("D", string.IsNullOrWhiteSpace(newOptD) ? "" : newOptD, valD));
+
+        double answerValue = newCorrectLabel switch { "A" => valA, "B" => valB, "C" => valC, _ => valD };
+        string hint = "مُضاف بواسطة المدرّس.";
+        string explanation = "راجع الحل اليدوي أو الموارد التعليمية.";
+
+        var q = new Question(newQuestionText, opts, answerValue, hint, explanation);
+        questions.Add(q);
+        totalQuestions = Math.Max(totalQuestions, questions.Count);
+        ClearTeacherForm();
+        StateHasChanged();
+    }
+
+    double ParseOrZero(string s)
+    {
+        if (double.TryParse(s, NumberStyles.Any, CultureInfo.InvariantCulture, out var v)) return v;
+        // try replace comma
+        s = s?.Replace(',', '.');
+        if (double.TryParse(s, NumberStyles.Any, CultureInfo.InvariantCulture, out v)) return v;
+        return 0;
+    }
+
+    async Task HandleTeacherFileSelected(InputFileChangeEventArgs e)
+    {
+        // Basic simulated parsing: create two sample questions based on file name/size
+        foreach (var file in e.GetMultipleFiles())
+        {
+            // simulate extraction latency
+            await Task.Delay(600);
+            var rnd = new Random();
+            var q1 = CreateRandomQuestion(0);
+            var q2 = CreateRandomQuestion(1);
+            questions.Add(q1);
+            questions.Add(q2);
+        }
+        totalQuestions = Math.Max(totalQuestions, questions.Count);
+        StateHasChanged();
+    }
+
+    // Existing quiz logic (unchanged)
+    void SetLevel(Level l) => level = l;
+
+    void Start()
+    {
+        started = true;
+        celebration = false;
+        score = 0;
+        currentIndex = 0;
+        hintMessage = string.Empty;
+        showFeedback = false;
+        if (questions.Count == 0) BuildQuestions();
+    }
+
+    void Reset()
+    {
+        started = false; celebration = false; questions.Clear(); score = 0; currentIndex = 0; totalQuestions = 6; hintMessage = string.Empty; showFeedback = false;
+    }
+
+    void Skip()
+    {
+        showFeedback = false; hintMessage = string.Empty; NextOrFinish(false);
+    }
+
+    void RevealHint() => hintMessage = currentQuestion.Hint;
+
+    void SubmitAnswer(Option opt)
+    {
+        double tolerance = 0.001;
+        bool correct = Math.Abs(opt.Value - currentQuestion.Answer) < Math.Max(tolerance, Math.Abs(currentQuestion.Answer) * 0.01);
+        lastCorrect = correct;
+        if (correct) { score++; lastFeedback = currentQuestion.Explanation; }
+        else { lastFeedback = currentQuestion.Explanation + " — الإجابة الصحيحة: " + FormatNumber(currentQuestion.Answer); }
+        showFeedback = true; hintMessage = string.Empty; _ = Task.Run(async () => { await Task.Delay(900); await InvokeAsync(() => NextOrFinish(correct)); });
+    }
+
+    void NextOrFinish(bool answeredCorrect)
+    {
+        showFeedback = false;
+        if (currentIndex + 1 >= totalQuestions) { celebration = true; started = false; }
+        else { currentIndex++; }
+        StateHasChanged();
+    }
+
+    void BuildQuestions()
+    {
+        questions.Clear();
+        var rnd = new Random();
+        for (int i = 0; i < totalQuestions; i++)
+        {
+            int concept = i % 3;
+            if (concept == 0)
+            {
+                int r = rnd.Next(3, level == Level.Easy ? 7 : 13);
+                double ans = Math.PI * r * r;
+                var opts = GenerateOptions(ans, rnd, 4);
+                questions.Add(new Question($"ما مساحة دائرة نصف قطرها {r} سم؟ (πr²)", opts, ans, "استخدم πr².", "تذكّر تربيع نصف القطر ثم الضرب في π."));
+            }
+            else if (concept == 1)
+            {
+                int a = level == Level.Easy ? rnd.Next(2, 6) : level == Level.Medium ? rnd.Next(3, 9) : rnd.Next(4, 12);
+                double ans = Math.Pow(a, 3);
+                var opts = GenerateOptions(ans, rnd, 4);
+                questions.Add(new Question($"ما حجم مكعب طول ضلعه {a} سم؟ (a³)", opts, ans, "حجم المكعب = a³.", "اضرب الضلع بنفسه ثلاث مرات."));
+            }
+            else
+            {
+                int l = rnd.Next(4, level == Level.Hard ? 12 : 9);
+                int w = rnd.Next(2, level == Level.Hard ? 10 : 6);
+                int h = rnd.Next(2, level == Level.Hard ? 10 : 6);
+                double ans = l * w * h;
+                var opts = GenerateOptions(ans, rnd, 4);
+                questions.Add(new Question($"ما حجم متوازي المستطيلات بأبعاد {l} سم × {w} سم × {h} سم؟", opts, ans, "الحجم = الطول × العرض × الارتفاع.", "تأكد من ضرب الأبعاد الثلاثة معًا."));
+            }
+        }
+    }
+
+    List<Option> GenerateOptions(double correct, Random rnd, int count)
+    {
+        var list = new List<Option>();
+        int correctIndex = rnd.Next(count);
+        for (int i = 0; i < count; i++)
+        {
+            if (i == correctIndex)
+            {
+                list.Add(new Option(((char)('A' + i)).ToString(), FormatNumber(correct), correct));
+            }
+            else
+            {
+                double factor = 1.0 + ((rnd.Next(10, 60) / 100.0) * (rnd.Next(0, 2) == 0 ? 1 : -1));
+                double val = correct * factor;
+                list.Add(new Option(((char)('A' + i)).ToString(), FormatNumber(val), val));
+            }
+        }
+        return list.OrderBy(x => x.Label).ToList();
+    }
+
+    string FormatNumber(double v)
+    {
+        if (Math.Abs(v) >= 1000) return Math.Round(v).ToString("N0", CultureInfo.InvariantCulture);
+        return v.ToString("0.##", CultureInfo.InvariantCulture);
+    }
+
+    Question CreateRandomQuestion(int concept)
+    {
+        var rnd = new Random();
+        if (concept == 0)
+        {
+            int r = rnd.Next(3, 9);
+            double ans = Math.PI * r * r;
+            var opts = GenerateOptions(ans, rnd, 4);
+            return new Question($"ما مساحة دائرة نصف قطرها {r} سم؟", opts, ans, "المساحة = πr².", "تذكر تربيع نصف القطر.");
+        }
+        else if (concept == 1)
+        {
+            int a = rnd.Next(3, 8);
+            double ans = Math.Pow(a, 3);
+            var opts = GenerateOptions(ans, rnd, 4);
+            return new Question($"ما حجم مكعب طول ضلعه {a} سم؟", opts, ans, "حجم المكعب = a³.", "اضرب طول الضلع ثلاث مرات.");
+        }
+        else
+        {
+            int l = rnd.Next(3, 10); int w = rnd.Next(2, 7); int h = rnd.Next(2, 7);
+            double ans = l * w * h;
+            var opts = GenerateOptions(ans, rnd, 4);
+            return new Question($"ما حجم متوازي المستطيلات بأبعاد {l} سم × {w} سم × {h} سم؟", opts, ans, "الحجم = الطول×العرض×الارتفاع.", "تأكد من ضرب الأبعاد الثلاثة.");
+        }
+    }
+}
+
+<style>
+/* emoji grid animation */
+.emoji-grid{position:relative;width:100%;height:100%;display:grid;grid-template-columns:repeat(9,1fr);grid-auto-rows:80px;align-items:center;justify-items:center}
+.emoji-grid span{font-size:28px;opacity:0.12;animation:float 14s linear infinite;display:inline-block}
+.emoji-grid span:nth-child(1){animation-delay:0s}
+.emoji-grid span:nth-child(2){animation-delay:2s}
+.emoji-grid span:nth-child(3){animation-delay:4s}
+.emoji-grid span:nth-child(4){animation-delay:6s}
+.emoji-grid span:nth-child(5){animation-delay:8s}
+.emoji-grid span:nth-child(6){animation-delay:1s}
+.emoji-grid span:nth-child(7){animation-delay:3s}
+.emoji-grid span:nth-child(8){animation-delay:5s}
+.emoji-grid span:nth-child(9){animation-delay:7s}
+@@keyframes float{0%{transform:translateY(0) rotate(0deg)}50%{transform:translateY(-18px) rotate(6deg)}100%{transform:translateY(0) rotate(0deg)}}
+@@media (max-width:768px){.emoji-grid{grid-template-columns:repeat(5,1fr)}}
+
+.rounded-3xl{border-radius:1.5rem}
+.rounded-2xl{border-radius:1rem}
+.shadow-lg{box-shadow:0 10px 25px rgba(2,6,23,0.08)}
+.shadow-md{box-shadow:0 6px 18px rgba(2,6,23,0.06)}
+.backdrop-blur{backdrop-filter:blur(6px)}
+.bg-white\/85{background-color:rgba(255,255,255,0.85)}
+button:hover{transform:translateY(-2px);transition:all .12s ease}
+</style>
